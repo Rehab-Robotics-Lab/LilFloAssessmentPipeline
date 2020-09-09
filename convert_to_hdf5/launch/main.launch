@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <include file="$(find convert_to_hdf5)/launch/convert_to_hdf5.launch">
-   <arg name = "bag_file" value= "/media/gsuveer/391cd01c-d5a2-4313-947a-da8978447a80/gsuveer/Desktop/Flo_data/flo_recording_2020-08-18-16-00-21_9.bag"/>
+   <arg name = "bag_file" value= "/media/gsuveer/391cd01c-d5a2-4313-947a-da8978447a80/gsuveer/Desktop/Flo_data/flo_recording_2020-08-18-16-02-21_11.bag"/>
    <arg name = "hdf5_file" value= "/media/gsuveer/391cd01c-d5a2-4313-947a-da8978447a80/gsuveer/Desktop/Flo_data/experiment1.hdf5"/>
    <arg name = "mode" value= "w"/>
    <arg name = "experiment_metadata" value= "Experiment_1" />

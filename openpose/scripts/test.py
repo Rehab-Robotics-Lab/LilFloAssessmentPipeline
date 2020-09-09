@@ -11,6 +11,9 @@ from extractPoses import processFrames
 import cv2
 import numpy as np
 
+import h5py
+'''
+
 cap  = cv2.VideoCapture('test_data/video.avi')
 
 n      = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -34,8 +37,15 @@ print(Images.dtype)
 
 cap.release()
 
-OutputImages, OutputPoseKeypoints = processFrames(Images)
 
+'''
+hf = h5py.File('output/experiment1.hdf5', 'r')
+dset = hf['Experiment_1/Video/lower_realsense/color/group_1']
+Images = np.asarray(dset)
+
+
+print(Images.dtype)
+OutputImages, OutputPoseKeypoints = processFrames(Images)
 np.save('output/testdata.npy', OutputImages)
 np.save('output/testdata_keypoints.npy', OutputPoseKeypoints)
 

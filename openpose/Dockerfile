@@ -31,7 +31,8 @@ CMD mkdir scripts
 CMD mkdir scripts/output
 
 WORKDIR /openpose
-COPY ./scripts ./build/scripts
+
+RUN pip3 install h5py
 
 WORKDIR /openpose/build/scripts
 

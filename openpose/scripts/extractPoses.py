@@ -24,11 +24,18 @@ Function to take a Frame and return keypoints and output image with keypoints
 '''
 def processFrame(img, opWrapper) :
     
-    
+
     datum = op.Datum()
-    datum.cvInputData = np.uint8(img)
+    if not img.dtype == np.uint8:
+        img=np.uint8(img)
+        print("Wrong image dtype: Changing to np.uint8")
+    #To be resolved
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    datum.cvInputData = img
     opWrapper.emplaceAndPop([datum])
-    cv2.imwrite('output/test.jpg', datum.cvOutputData)
+    #print(datum.poseKeypoints.shape)
+    #cv2.imwrite('output/test.jpg', datum.cvOutputData)
+
     return datum.cvOutputData, datum.poseKeypoints
 
 '''
@@ -44,9 +51,11 @@ def processFrames(Images):
     print("Parameters : ", params)
     
     if len(Images.shape)<4 :
+
+        print("Adding Extra Dimension")
         Images = np.expand_dims(Images,-1)
     
-    OutputImages = np.empty(Images.shape)
+    OutputImages = np.empty(Images.shape,dtype=np.uint8)
     num_images = 1
     
     try :
@@ -54,8 +63,9 @@ def processFrames(Images):
     except:
         pass
     
-    #OutputPoseKeypoints = np.zeros((num_images,25,3))
-    OutputPoseKeypoints = []
+
+    OutputPoseKeypoints = np.zeros((num_images,25,3))
+    #OutputPoseKeypoints = []
     opWrapper = op.WrapperPython()
     opWrapper.configure(params)
     opWrapper.start()
@@ -65,7 +75,12 @@ def processFrames(Images):
         imageToProcess = Images[:,:,:,i]
         OutputImage, poseKeypoints = processFrame(imageToProcess, opWrapper)
         OutputImages[:,:,:,i] = OutputImage
-        #OutputPoseKeypoints[i,:,:] = poseKeypoints
-        OutputPoseKeypoints.append(poseKeypoints)
-    
+        
+        if(poseKeypoints.shape[0]>1):
+            print("More than one person Detected: skipping frame" )
+            continue
+        
+        OutputPoseKeypoints[i,:,:] = poseKeypoints
+        #OutputPoseKeypoints.append(poseKeypoints)
+        
     return OutputImages, OutputPoseKeypoints
