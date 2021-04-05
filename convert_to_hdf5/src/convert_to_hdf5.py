@@ -149,6 +149,81 @@ def get_topic_info(data_info_mapping, bag_file, meta_data):
     return topic_info
 
 
+def add_video_topics(hdf5_database, data_info_mapping, meta_data, topic_info):
+    """Add the video topics to the selected hdf5 database
+
+    Args:
+        hdf5_database: The database to wor on
+        data_info_mapping: The mapping between data and information topics
+        meta_data: The meta data
+        topic_info: The information from the information topics
+    """
+    for vid_topic in data_info_mapping:
+        raw_topic = meta_data['bag-mapping'][vid_topic]
+        rospy.loginfo(
+            '\tParsing for standard topic : %s' % (vid_topic))
+        rospy.loginfo(
+            '\t\traw topic : %s' % (raw_topic))
+        topic_meta_info = topic_info[vid_topic]
+        if topic_meta_info:
+            vid_topic_data_name = vid_topic + '/data'
+            vid_topic_secs_name = vid_topic + '/secs'
+            vid_topic_nsecs_name = vid_topic + '/nsecs'
+            if 'depth' in vid_topic and vid_topic_data_name not in hdf5_database:
+                rospy.loginfo('\t\tnew depth dataset')
+                dataset = hdf5_database.create_dataset(vid_topic_data_name,
+                                                       (INITIAL_SIZE, topic_meta_info.height,
+                                                        topic_meta_info.width),
+                                                       maxshape=(
+                                                           None, topic_meta_info.height,
+                                                           topic_meta_info.width),
+                                                       dtype=np.uint16,
+                                                       chunks=(
+                                                           CHUNK_SIZE,
+                                                           topic_meta_info.height,
+                                                           topic_meta_info.width))
+            elif 'color' in vid_topic and vid_topic_data_name not in hdf5_database:
+                rospy.loginfo('\t\tnew color dataset')
+                dataset = hdf5_database.create_dataset(vid_topic_data_name,
+                                                       (INITIAL_SIZE, topic_meta_info.height,
+                                                        topic_meta_info.width, 3),
+                                                       maxshape=(
+                                                           None, topic_meta_info.height,
+                                                           topic_meta_info.width, 3),
+                                                       dtype=np.uint8,
+                                                       chunks=(
+                                                           CHUNK_SIZE,
+                                                           topic_meta_info.height,
+                                                           topic_meta_info.width,
+                                                           3))
+            else:
+                rospy.loginfo(
+                    '\t\tDataset already existed!! no action taken')
+                continue
+
+            # Note the continue above. This block will not run if the if or elif
+            # blocks do not run
+            hdf5_database.create_dataset(vid_topic_secs_name, (INITIAL_SIZE,),
+                                         maxshape=(None,),
+                                         dtype=np.uint32, chunks=(CHUNK_SIZE,))
+
+            hdf5_database.create_dataset(vid_topic_nsecs_name, (INITIAL_SIZE,),
+                                         maxshape=(None,),
+                                         dtype=np.uint32, chunks=(CHUNK_SIZE,))
+
+            dataset.attrs.create('height', topic_meta_info.height)
+            dataset.attrs.create('width', topic_meta_info.width)
+            dataset.attrs.create('d', topic_meta_info.d)
+            dataset.attrs.create('k', topic_meta_info.k)
+            dataset.attrs.create('r', topic_meta_info.r)
+            dataset.attrs.create('p', topic_meta_info.p)
+            dataset.attrs.create('binning_x', topic_meta_info.binning_x)
+            dataset.attrs.create('binning_y', topic_meta_info.binning_y)
+        else:
+            rospy.loginfo('\t\tno meta info')
+    return hdf5_database
+
+
 def load_hdf_files(record_names, out_dir, data_info_mapping, meta_data, topic_info):  # pylint: disable=too-many-locals
     """Load HDF files to prepare to add data. Will create necessary databases in the hdf5
        file and will fill in atrributes using the topic info where relevant
@@ -176,69 +251,9 @@ def load_hdf_files(record_names, out_dir, data_info_mapping, meta_data, topic_in
             rospy.logerr(
                 'HDF5 Database COULD NOT BE READ/CREATED: %s', hdf5_fn_full)
             raise
+        hdf5_files[idx] = add_video_topics(
+            hdf5_files[idx], data_info_mapping, meta_data, topic_info)
 
-        for vid_topic in data_info_mapping:
-            raw_topic = meta_data['bag-mapping'][vid_topic]
-            rospy.loginfo(
-                '\tParsing for standard topic : %s' % (vid_topic))
-            rospy.loginfo(
-                '\t\traw topic : %s' % (raw_topic))
-            topic_meta_info = topic_info[vid_topic]
-            if topic_meta_info:
-                hdf5_database = hdf5_files[idx]
-                vid_topic_data_name = vid_topic + '/data'
-                vid_topic_secs_name = vid_topic + '/secs'
-                vid_topic_nsecs_name = vid_topic + '/nsecs'
-                if 'depth' in vid_topic and vid_topic_data_name not in hdf5_database:
-                    rospy.loginfo('\t\tnew depth dataset')
-                    dataset = hdf5_database.create_dataset(vid_topic_data_name,
-                                                           (INITIAL_SIZE, topic_meta_info.height,
-                                                            topic_meta_info.width),
-                                                           maxshape=(
-                                                               None, topic_meta_info.height,
-                                                               topic_meta_info.width),
-                                                           dtype=np.uint16,
-                                                           chunks=(
-                                                               CHUNK_SIZE,
-                                                               topic_meta_info.height,
-                                                               topic_meta_info.width))
-                elif 'color' in vid_topic and vid_topic_data_name not in hdf5_database:
-                    rospy.loginfo('\t\tnew color dataset')
-                    dataset = hdf5_database.create_dataset(vid_topic_data_name,
-                                                           (INITIAL_SIZE, topic_meta_info.height,
-                                                            topic_meta_info.width, 3),
-                                                           maxshape=(
-                                                               None, topic_meta_info.height,
-                                                               topic_meta_info.width, 3),
-                                                           dtype=np.uint8,
-                                                           chunks=(
-                                                               CHUNK_SIZE,
-                                                               topic_meta_info.height,
-                                                               topic_meta_info.width,
-                                                               3))
-                else:
-                    rospy.loginfo(
-                        '\t\tDataset already existed!! no action taken')
-                    continue
-
-                hdf5_database.create_dataset(vid_topic_secs_name, (INITIAL_SIZE,),
-                                             maxshape=(None,),
-                                             dtype=np.uint32, chunks=(CHUNK_SIZE,))
-
-                hdf5_database.create_dataset(vid_topic_nsecs_name, (INITIAL_SIZE,),
-                                             maxshape=(None,),
-                                             dtype=np.uint32, chunks=(CHUNK_SIZE,))
-
-                dataset.attrs.create('height', topic_meta_info.height)
-                dataset.attrs.create('width', topic_meta_info.width)
-                dataset.attrs.create('D', topic_meta_info.D)
-                dataset.attrs.create('K', topic_meta_info.K)
-                dataset.attrs.create('R', topic_meta_info.R)
-                dataset.attrs.create('P', topic_meta_info.P)
-                dataset.attrs.create('binning_x', topic_meta_info.binning_x)
-                dataset.attrs.create('binning_y', topic_meta_info.binning_y)
-            else:
-                rospy.loginfo('\t\tNo meta info')
     return hdf5_files
 
 
