@@ -7,6 +7,7 @@ import numpy as np
 import h5py
 from extract_poses import process_frames
 from tqdm import tqdm
+from scipy.signal import convolve2d
 
 
 def allkeys(obj):
@@ -75,11 +76,45 @@ def convert(pth):
                 dset+'-keypoints', (hdf5_in[dset].len(), 25, 2), dtype=np.float32)
             confidence_dset = hdf5_out.create_dataset(
                 dset+'-confidence', (hdf5_in[dset].len(), 25), dtype=np.float32)
+            metric_dset = hdf5_out.create_dataset(
+                dset+'-metric', (hdf5_in[dset].len(), 25, 3), dtype=np.float32)
+            depth_keypoints_dset = hdf5_out.create_dataset(
+                dset+'-keypoints-depth', (hdf5_in[dset].len(), 25, 2), dtype=np.float32)
+            depth_name = dset.replace('color', 'depth')
+            depth_match_name = dset[::-1].replace(
+                'data'[::-1], 'matched_depth_index'[::-1], 1)[::-1]
+            kernel = np.ones((3, 3)) / 9.0
+            k_depth = hdf5_in[depth_name].attrs['K'].reshape(3, 3)
+            k_color = hdf5_in[dset].attrs['K'].reshape(3, 3)
+            k_color_inv = np.linalg.inv(k_color)
+            # TODO: get spatial transform in here:
+            transformation = k_depth@k_color_inv
             for chunk in tqdm(hdf5_in[dset].iter_chunks(), desc='chunks'):
                 color_arr = hdf5_in[dset][chunk]
+                depth_indeces = hdf5_in[depth_match_name][chunk[0]]
                 keypoints = process_frames(color_arr)
-                keypoints_dset[chunk[0], :, :] = keypoints[:, :, 0:2]
+                keypoints_dset[chunk[0], :, 0:2] = keypoints[:, :, 0:2]
                 confidence_dset[chunk[0], :] = keypoints[:, :, 2]
+                for idx in range(len(depth_indeces)):
+                    depth_data = hdf5_in[depth_name][depth_indeces[idx]]
+                    depth_avg = convolve2d(
+                        depth_data, kernel, mode='same')
+                    for kp_idx in range(keypoints.shape[1]):
+                        # TODO wrap this into the transformation
+                        depth_space_keypoints = k_depth@(k_color_inv@np.append(
+                            keypoints[idx, kp_idx, 0:2], 1)-[.0151, 0, .00039])
+                        # TODO: these mins should not be necessary
+                        import pdb
+                        pdb.set_trace()
+                        keypoint_y = max(
+                            min(round(depth_space_keypoints[0]), 1280), 0)
+                        keypoint_x = max(
+                            min(round(depth_space_keypoints[1]), 720), 0)
+                        depth_keypoints_dset[idx, kp_idx, :] = [
+                            keypoint_x, keypoint_y]
+                        this_depth = depth_avg[keypoint_x, keypoint_y]
+                        metric_dset[idx, kp_idx, :] = k_color_inv@np.append(
+                            keypoints[idx, kp_idx, 0:2], 1) * this_depth
         else:
             tqdm.write('not sure what to do with this dataset')
 
