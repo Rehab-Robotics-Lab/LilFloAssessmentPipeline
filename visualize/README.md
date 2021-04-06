@@ -14,8 +14,7 @@
 2.  attach drive: `./mount_instance_store.py`
 3.  Run script: `./process-in-ec2.sh -s <subj> -c <cond: augmented-telepresence, classical-telepresence, in-person> -a <activity: simon-says, target-touch>`
 
-###RUN Locally
+### RUN Locally
 
 1.  docker build . --tag video-overlay
-2.  Run script: './run-locally.sh -s <subj> -c <cond: augmented-telepresence, classical-telepresence, in-person> -a <activity: simon-says, target-touch> -p <camera>, -d <data_directory(looks for /data/condition/activity.hdf5)>, -o <overlay: wrists, 2dSkeleton, 3dSkelton>' 
-
+2.  Run script: `./run-locally.sh -s <subj> -c <cond: augmented-telepresence, classical-telepresence, in-person> -a <activity: simon-says, target-touch> -p <camera>, -d <data_directory(looks for /data/condition/activity.hdf5)>, -o <overlay: wrists, 2dSkeleton, 3dSkelton>`

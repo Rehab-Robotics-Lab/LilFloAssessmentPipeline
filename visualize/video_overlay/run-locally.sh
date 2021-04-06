@@ -3,25 +3,23 @@ set -o errexit
 set -o pipefail
 
 # parse options
-while getopts :s:c:a:p:d:o: flag
+while getopts :c:a:p:d:o:r flag
 do
     case "${flag}" in
-        s) subject=${OPTARG};;
         c) condition=${OPTARG};;
         a) activity=${OPTARG};;
         p) camera=${OPTARG};;
         o) overlay=${OPTARG};;
-	d) data=${OPTARG};;
+	    d) data=${OPTARG};;
+        r) rebuild=true;;
         :) echo 'missing argument' >&2; exit 1;;
         \?) echo 'invalid option' >&2; exit 1
     esac
 done
 
-# check subject number
-echo "Passed: $subject"
-re='^[0-9]+$'
-if ! [[ $subject =~ $re ]] ; then
-   echo "error: Subject number is not a number" >&2; exit 1
+if [ "$rebuild" = true ] ; then
+    echo 'rebuilding docker image'
+    docker build . --tag video-overlay
 fi
 
 if [[ "$camera" =~ ^(upper|lower|all)$ ]]; then
@@ -30,8 +28,6 @@ else
     echo "invalid camera parameter passed: $camera"
 fi
 
-subject_padded=$(printf '%03d' "$subject")
-echo "Processing for subj: $subject_padded"
 echo "Data directory: $data"
 echo "Condition: $condition"
 echo "Activity: $activity"
@@ -39,25 +35,28 @@ echo "Camera: $camera"
 
 if [[ "$camera" == "all" ]]; then
 
-sudo docker run \
+docker run \
     --mount type=bind,source="$data",target=/code/data \
     --rm \
+    -i \
     video-overlay \
     "data/$condition/$activity" \
     "lower"\
     "$overlay"
 
-sudo docker run \
+docker run \
     --mount type=bind,source="$data",target=/code/data \
     --rm \
+    -i \
     video-overlay \
     "data/$condition/$activity"\
     "upper"\
     "$overlay"
 else
-sudo docker run \
+docker run \
     --mount type=bind,source="$data",target=/code/data \
     --rm \
+    -i \
     video-overlay\
     "data/$condition/$activity"\
     "$camera"\

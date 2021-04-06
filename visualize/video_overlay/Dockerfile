@@ -4,8 +4,8 @@ FROM ubuntu
 
 RUN apt-get update  -y
 RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata
-RUN apt-get install -y python3-venv python3-pip lbzip2 curl unzip libhdf5-serial-dev hdf5-tools libhdf5-dev python3-opencv python3-dev python3-numpy pkg-config
-RUN pip3 install h5py tqdm
+RUN apt-get install -y python3-venv python3-pip lbzip2 curl unzip libhdf5-serial-dev hdf5-tools libhdf5-dev python3-opencv python3-dev python3-numpy pkg-config ffmpeg texlive-latex-extra texlive-fonts-recommended cm-super
+RUN pip3 install h5py tqdm matplotlib
 
 CMD mkdir code
 COPY ./*.py  ./code/

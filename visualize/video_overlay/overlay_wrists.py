@@ -7,6 +7,23 @@ import sys
 import numpy as np
 from utils import draw_text
 from utils import colorScale
+import h5py
+import cv2
+from tqdm import tqdm, trange
+
+
+def color_scale(mag, cmin, cmax):
+    """ Return a tuple of floats between 0 and 1 for R, G, and B. """
+    # Normalize to 0-1
+    try:
+        scale = float(mag-cmin)/(cmax-cmin)
+    except ZeroDivisionError:
+        scale = 0.5  # cmax == cmin
+    blue = min((max((4*(0.75-scale), 0.)), 1.))
+    red = min((max((4*(scale-0.25), 0.)), 1.))
+    green = min((max((4*math.fabs(scale-0.5)-1., 0.)), 1.))
+    return int(red*255), int(green*255), int(blue*255)
+
 
 def overlay_wrists(file_stub, cam):
     hdf5_video = h5py.File(file_stub+'.hdf5')
