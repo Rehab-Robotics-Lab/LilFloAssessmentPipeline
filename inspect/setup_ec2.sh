@@ -33,6 +33,7 @@ sudo apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31
 sudo apt-get update -y
 sudo apt-get install -y ros-noetic-desktop
 echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
+# shellcheck disable=SC1090
 source ~/.bashrc
 
 sudo apt-get clean

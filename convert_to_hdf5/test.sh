@@ -18,7 +18,7 @@ do
     esac
 done
 
-data=$(echo "$data" | sed 's:/*$::')
+data="${data%/}"
 meta="/data/$meta"
 bag="/data/$bag"
 

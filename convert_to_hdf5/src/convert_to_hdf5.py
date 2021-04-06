@@ -19,23 +19,31 @@ TODO
     Add additional topics apart from image topics
 """
 
-import h5py
+import pathlib
+import copy
 import numpy as np
+import yaml
+import h5py
 import rospy
 import rosbag
-from sensor_msgs.msg import Image
-from sensor_msgs.msg import CompressedImage
 from cv_bridge import CvBridge
 from tqdm import tqdm
-import yaml
-import pathlib
-import time
 
 INITIAL_SIZE = 0
 CHUNK_SIZE = 500
 
 
 def generate_record_defs(meta_data):
+    """Parse meta data to determine the names of segments, start, and end times.
+
+    Args:
+        meta_data: the dictionary of metadata
+
+    Returns:
+        record_names: the names of the segments
+        start_times: the time that each segment starts
+        end_times: the time that each segment ends
+    """
     record_names = []
     start_times = []
     end_times = []
@@ -51,6 +59,13 @@ def generate_record_defs(meta_data):
 
 
 def match_video_2_data(meta_data):
+    """Create a dictionary mapping from video topic names to their corresponding info topic names
+
+    Args:
+        meta_data: the metadata dictionary
+
+    Returns: A dictionary with keys video data topic names and values info topic names
+    """
     info_topics = filter(lambda x: 'vid' and 'info' in x,
                          meta_data['bag-mapping'].keys())
     data_topics = filter(lambda x: 'vid' and 'data' in x,
@@ -66,6 +81,13 @@ def match_video_2_data(meta_data):
 
 
 def load_bag_file(bag_filename):
+    """Load a bag file from disk
+
+    Args:
+        bag_filename: the filename of the bag file
+
+    Returns: The bag file
+    """
     if not bag_filename == '':
         try:
             bag_file = rosbag.Bag(bag_filename)
@@ -74,16 +96,23 @@ def load_bag_file(bag_filename):
             raise
     else:
         rospy.logerr('No Argument provided for Bag Filename')
-        return
+        return None
 
     topics = bag_file.get_type_and_topic_info()[1].keys()
-    rospy.loginfo('Succefully read bag file with topics:')
+    rospy.loginfo('Successfully read bag file with topics:')
     for topic in topics:
         rospy.loginfo('\t\t%s', topic)
     return bag_file
 
 
 def load_meta_file(meta_filename):
+    """Load meta file from disk and parse yaml to return a dictionary
+
+    Args:
+        meta_filename: The filename of the meta yaml file
+
+    Returns: dictionary of parsed meta file
+    """
     # Read in meta file
     with open(meta_filename, 'r') as stream:
         try:
@@ -95,6 +124,16 @@ def load_meta_file(meta_filename):
 
 
 def get_topic_info(data_info_mapping, bag_file, meta_data):
+    """Get the first info message for each video file
+
+    Args:
+        data_info_mapping: a dictionary mapping from data topic names to info topic names
+        bag_file: The bag file to extract from
+        meta_data: The meta data as a dictionary
+
+    Returns: A dictionary with the information in the first message for each video,
+             keyed on the video topic name
+    """
     topic_info = {}
     for vid_topic in data_info_mapping:
         true_topic = meta_data['bag-mapping'][data_info_mapping[vid_topic]]
@@ -110,7 +149,21 @@ def get_topic_info(data_info_mapping, bag_file, meta_data):
     return topic_info
 
 
-def load_hdf_files(record_names, out_dir, data_info_mapping, meta_data, topic_info):
+def load_hdf_files(record_names, out_dir, data_info_mapping, meta_data, topic_info):  # pylint: disable=too-many-locals
+    """Load HDF files to prepare to add data. Will create necessary databases in the hdf5
+       file and will fill in atrributes using the topic info where relevant
+
+    Args:
+        record_names: The names of the records in each bag sequence, this is essentially
+                      the name of the relevant activities, each of which will create a
+                      unique hdf5 file
+        out_dir: The directory to save to
+        data_info_mapping: The mapping between video data topics and info data topics
+        meta_data: The meta data as a dictionary
+        topic_info: The data from the info topics in a dictionary keyed on the video topic name
+
+    Returns: List of the HDF5 File data objects
+    """
     hdf5_files = len(record_names)*[None]
     for idx, hdf5_fn in enumerate(record_names):
         rospy.loginfo('Working on seq/act: %s', hdf5_fn)
@@ -189,7 +242,83 @@ def load_hdf_files(record_names, out_dir, data_info_mapping, meta_data, topic_in
     return hdf5_files
 
 
-def node():
+def match_depth(hdf5_files, data_info_mapping):  # pylint: disable=too-many-branches
+    """Match the depth to the color topics for videos.
+
+    Adds a data structure to the hdf5 file objects which are passed in (modifying the
+    existing objects).
+
+    Args:
+        hdf5_files: the list of hdf file objects to work on
+        data_info_mapping: The mapping between video data topics and info data topics
+    """
+    upper_color_match_topic = 'vid/color/data/upper/matched_depth_index'
+    lower_color_match_topic = 'vid/color/data/lower/matched_depth_index'
+
+    timestamps = {}
+    dataset_upper = None
+    dataset_lower = None
+
+    for hdf5_database in hdf5_files:
+        if upper_color_match_topic not in hdf5_database:
+            dataset_upper = hdf5_database.create_dataset(upper_color_match_topic, (INITIAL_SIZE,),
+                                                         maxshape=(None,),
+                                                         dtype=np.uint32, chunks=(CHUNK_SIZE,))
+        else:
+            dataset_upper = hdf5_database[upper_color_match_topic]
+
+        if lower_color_match_topic not in hdf5_database:
+            dataset_lower = hdf5_database.create_dataset(lower_color_match_topic, (INITIAL_SIZE,),
+                                                         maxshape=(None,),
+                                                         dtype=np.uint32, chunks=(CHUNK_SIZE,))
+        else:
+            dataset_lower = hdf5_database[lower_color_match_topic]
+
+        for vid_topic in data_info_mapping:
+            if 'vid' in vid_topic:  # This addresses that we read only from vid topics
+                timestamp_secs = hdf5_database[vid_topic + '/secs']
+                timestamp_nsecs = hdf5_database[vid_topic + '/nsecs']
+
+                if timestamp_secs.shape[0] == 0 or timestamp_nsecs.shape[0] == 0:
+                    tstamp = None
+                else:
+                    timestamp_secs = np.asarray(timestamp_secs)
+                    timestamp_nsecs = np.asarray(timestamp_nsecs)
+                    tstamp = np.expand_dims(
+                        timestamp_secs + 1e-9 * timestamp_nsecs, 0)
+
+                if 'upper' in vid_topic and 'color' in vid_topic:
+                    timestamps['upper_color'] = copy.deepcopy(tstamp)
+                if 'upper' in vid_topic and 'depth' in vid_topic:
+                    timestamps['upper_depth'] = copy.deepcopy(tstamp)
+                if 'lower' in vid_topic and 'color' in vid_topic:
+                    timestamps['lower_color'] = copy.deepcopy(tstamp)
+                if 'lower' in vid_topic and 'depth' in vid_topic:
+                    timestamps['lower_depth'] = copy.deepcopy(tstamp)
+
+        # TODO: should this be and or or?
+        if timestamps['lower_color'] is None or timestamps['upper_color'] is None:
+            rospy.loginfo('No Color Timestamps in current HDF5 database')
+            continue
+
+        # TODO: should this be and or or?
+        if timestamps['lower_depth'] is None or timestamps['upper_depth'] is None:
+            rospy.loginfo('No Depth Timestamps in current HDF5 database')
+            continue
+
+        dataset_upper.resize(timestamps['upper_color'].shape[1], axis=0)
+        dataset_upper[...] = np.argmin(np.abs(timestamps['upper_color'] -
+                                              timestamps['upper_depth'].T), axis=0)
+
+        dataset_lower.resize(timestamps['lower_color'].shape[1], axis=0)
+        dataset_lower[...] = np.argmin(np.abs(timestamps['lower_color'] -
+                                              timestamps['lower_depth'].T), axis=0)
+
+
+def node():  # pylint: disable=too-many-statements, too-many-locals
+    """The ROS node from which bag access, data parsing, and and hdf5 file generation
+       is orchestrated
+    """
     rospy.init_node('rosbag_to_hdf5_node')
     rospy.loginfo('started rosbag to hdf5 conversion')
     bag_filename = rospy.get_param('~bag_file', None)
@@ -210,6 +339,7 @@ def node():
 
     bridge = CvBridge()
     outer_progress_bar = tqdm(data_info_mapping)
+
     for vid_topic in outer_progress_bar:
         # rospy.loginfo('Extracting info from : %s' % (vid_topic))
         raw_topic = meta_data['bag-mapping'][vid_topic]
@@ -292,8 +422,12 @@ def node():
             # rospy.loginfo('first time: {}'.format(first_time/total_time))
             # rospy.loginfo('second time: {}'.format(second_time/total_time))
             # rospy.loginfo('bag read time: {}'.format(bag_read_time/total_time))
+
+    match_depth(hdf5_files, data_info_mapping)
+
     for file in hdf5_files:
         file.close()
+
     rospy.loginfo('Exiting Process')
     rospy.signal_shutdown('Exiting Cleanly')
 

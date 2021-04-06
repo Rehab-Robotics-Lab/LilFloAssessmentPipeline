@@ -1,31 +1,26 @@
-"""
-Created on Wed Jul  8 23:07:00 2020
-
-@author: gsuveer
-"""
+#!/usr/bin/env python3
+'''Module for extracting poses from images using openpose'''
 
 import sys
-import cv2
-import os
-import argparse
 import numpy as np
+import cv2
 from tqdm import tqdm, trange
 
 try:
-    dir_path = os.path.dirname(os.path.realpath(__file__))
     sys.path.append('../python')
     from openpose import pyopenpose as op
-except ImportError as e:
+except ImportError as err:
     print('Error: OpenPose library could not be found. The path is probably not set correctly')
-    raise e
+    raise err
 
 
-'''
-Function to take a Frame and return keypoints and output image with keypoints
-'''
+def process_frame(img, op_wrapper):
+    """Function to take a Frame and return keypoints and output image with keypoints
 
-
-def processFrame(img, opWrapper):
+    Args:
+        img: Image to work with
+        op_wrapper: The openpose wrapper
+    """
 
     datum = op.Datum()
     if not img.dtype == np.uint8:
@@ -34,21 +29,21 @@ def processFrame(img, opWrapper):
     # To be resolved
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     datum.cvInputData = img
-    opWrapper.emplaceAndPop(op.VectorDatum([datum]))
+    op_wrapper.emplaceAndPop(op.VectorDatum([datum]))
     # tqdm.write(datum.poseKeypoints.shape)
     #cv2.imwrite('output/test.jpg', datum.cvOutputData)
     return datum.cvOutputData, datum.poseKeypoints
 
 
-'''
-Function to take in a array of RGB images and return a array of images 
+def process_frames(images):
+    """Function to take in a array of RGB images and return a array of images
 with keypoints and a separate keypoint array
 
 The last channel is taken as number of images
-'''
 
-
-def processFrames(Images):
+    Args:
+        images: the images to process
+    """
     # Params defined here: https://github.com/CMU-Perceptual-Computing-Lab/
     #                      openpose/blob/master/include/openpose/flags.hpp
     params = dict()
@@ -59,28 +54,28 @@ def processFrames(Images):
     params["display"] = 0
     # tqdm.write("Parameters : ", params)
 
-    if len(Images.shape) < 4:
+    if len(images.shape) < 4:
         tqdm.write("Adding Extra Dimension")
-        Images = np.expand_dims(Images, 0)
+        images = np.expand_dims(images, 0)
 
     num_images = 1
 
     try:
-        num_images = Images.shape[0]
-    except:
+        num_images = images.shape[0]
+    except:  # pylint: disable=bare-except
         pass
 
-    # TODO figure out how to run at [higher accuracy](https://github.com/CMU-Perceptual-Computing-Lab/openpose_train/tree/master/experimental_models#body_25b-model---option-1-maximum-accuracy-less-speed)
+    # TODO figure out how to run at [higher accuracy](https://github.com/CMU-Perceptual-Computing-Lab/openpose_train/tree/master/experimental_models#body_25b-model---option-1-maximum-accuracy-less-speed) pylint: disable=line-too-long
     output_keypoints = np.zeros((num_images, 25, 3))
     #OutputPoseKeypoints = []
     op_wrapper = op.WrapperPython()
     op_wrapper.configure(params)
     op_wrapper.start()
 
-    for i in trange(Images.shape[0], desc='openpose'):
+    for i in trange(images.shape[0], desc='openpose'):
 
-        image2process = Images[i, :, :, :]
-        _, pose_keypoints = processFrame(image2process, op_wrapper)
+        image2process = images[i, :, :, :]
+        _, pose_keypoints = process_frame(image2process, op_wrapper)
         # OutputImages[:, :, :, i] = OutputImage
         # tqdm.write('for image {} found: {}'.format(i, pose_keypoints))
 

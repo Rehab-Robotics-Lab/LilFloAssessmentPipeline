@@ -1,0 +1,9 @@
+bag-mapping:
+  vid/color/data/upper: /upper_realsense/color/image_raw_relay
+  vid/color/info/upper: /upper_realsense/color/camera_info
+  vid/depth/data/upper: /upper_realsense/depth/image_rect_raw_relay
+  vid/depth/info/upper: /upper_realsense/depth/camera_info
+  vid/color/data/lower: /lower_realsense/color/image_raw_relay
+  vid/color/info/lower: /lower_realsense/color/camera_info
+  vid/depth/data/lower: /lower_realsense/depth/image_rect_raw_relay
+  vid/depth/info/lower: /lower_realsense/depth/camera_info

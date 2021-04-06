@@ -24,7 +24,6 @@ echo "Processing for subj: $subject_padded"
 
 src=s3://flo-exp-aim1-data-raw/$subject_padded/
 out=s3://flo-exp-aim1-hdf5/$subject_padded/
-meta=s3://flo-exp-aim1-data-meta/$subject_padded/
 #src=/media/mjsobrep/flo-external/008/ # <- this should get pulled in from batch job
 # copy from s3 into local storage
 

@@ -1,0 +1,26 @@
+---
+name: Lint bash
+
+on:
+  pull_request:
+    types: [synchronize, opened, reopened]
+
+jobs:
+  bash-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v2
+        with:
+          path: LilFloAssessmentPipeline
+
+      - name: Setup Shell Check
+        run: |
+            sudo apt-get update
+            sudo apt-get install shellcheck
+
+      - name: Lint with Shell Check
+        run: |
+          cd $GITHUB_WORKSPACE/LilFloAssessmentPipeline
+          git ls-files | grep 'sh$' | xargs shellcheck

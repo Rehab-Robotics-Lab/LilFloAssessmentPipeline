@@ -1,3 +1,4 @@
+# pylint: skip-file
 #!/usr/bin/env python
 import numpy as np
 import argparse
@@ -14,6 +15,7 @@ import matplotlib.pyplot as plt
 '''
 Function to initialise the model
 '''
+
 
 def create_model(weights=None):
     # Create the model
@@ -43,18 +45,21 @@ def create_model(weights=None):
 
     return model
 
+
 '''
 Takes a RGB frame and the NN model to return the emotion detected on that frame
 '''
+
+
 def process_frame(frame, model, facecasc):
 
     # Loads the Haar cascade file for face area detection
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     faces = facecasc.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
-    
+
     maxindex = None
-    prediction = np.zeros((1,7))
+    prediction = np.zeros((1, 7))
 
     for (x, y, w, h) in faces:
         # Extracting Region of interest
@@ -64,7 +69,7 @@ def process_frame(frame, model, facecasc):
         # Passing image through the model
         prediction = model.predict(cropped_img)
 
-        #print(prediction.shape)
+        # print(prediction.shape)
 
     return prediction
 
@@ -73,19 +78,22 @@ def process_frame(frame, model, facecasc):
 Function that takes in a block of images and return prediction scores on them
 '''
 
+
 def extract_emotions(images, weights):
 
     print('Weights file: %s', weights)
-    
-    #Check if images are the right shape
-    if not len(images.shape)==4 or not images.shape[2]==3:
-            print("Image input are not the correct shape, Expected(h*w*3*n), got: ", images.shape)
-    
+
+    # Check if images are the right shape
+    if not len(images.shape) == 4 or not images.shape[2] == 3:
+        print(
+            "Image input are not the correct shape, Expected(h*w*3*n), got: ", images.shape)
+
     try:
-        facecasc = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+        facecasc = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
     except:
         print("HAARCASCADE object could not be initialised")
-    
+
     # Creating Model
     if(not(weights == "")):
         try:
@@ -100,17 +108,17 @@ def extract_emotions(images, weights):
                     3: "Happy", 4: "Neutral", 5: "Sad", 6: "Surprised", -1: "No Face"}
 
     n = images.shape[3]
-    prediction_scores_array = np.zeros((7,n))
+    prediction_scores_array = np.zeros((7, n))
     predicted_emotion = []
     for i in range(n):
         prediction_scores = process_frame(
-            images[:,:,:,i], model, facecasc)
-        prediction_scores_array[:,i] = prediction_scores
+            images[:, :, :, i], model, facecasc)
+        prediction_scores_array[:, i] = prediction_scores
         max_index = int(np.argmax(prediction_scores))
-        
-        if np.sum(prediction_scores)==0:
+
+        if np.sum(prediction_scores) == 0:
             max_index = -1
-        
+
         predicted_emotion.append(emotion_dict[max_index])
 
     return predicted_emotion, prediction_scores_array

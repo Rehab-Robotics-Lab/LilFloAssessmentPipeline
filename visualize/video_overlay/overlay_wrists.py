@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 
-import h5py
-from tqdm import tqdm, trange
-import cv2
+"""A module for overlaying data and text onto images"""
+
 import math
 import sys
 import numpy as np
@@ -31,10 +30,10 @@ def overlay_wrists(file_stub, cam):
         # Joints listed here: https://github.com/CMU-Perceptual-Computing-Lab/openpose/
         # blob/master/doc/02_output.md#keypoints-in-cpython
         for joint in (4, 7):
-            x = int(keypoints[joint][0])
-            y = int(keypoints[joint][1])
+            x = int(keypoints[joint][0])  # pylint: disable=invalid-name
+            y = int(keypoints[joint][1])  # pylint: disable=invalid-name
             cv2.circle(img, (x, y), 20,
-                       colorScale(confidence[4], 0, 1), 8)
+                       color_scale(confidence[4], 0, 1), 8)
 
         video_writer.write(img)
     video_writer.release()
