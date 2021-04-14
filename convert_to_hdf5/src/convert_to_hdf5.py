@@ -296,24 +296,19 @@ def match_depth(hdf5_files, data_info_mapping):  # pylint: disable=too-many-bran
                 if 'lower' in vid_topic and 'depth' in vid_topic:
                     timestamps['lower_depth'] = copy.deepcopy(tstamp)
 
-        # TODO: should this be and or or?
-        if timestamps['lower_color'] is None or timestamps['upper_color'] is None:
-            rospy.loginfo('No Color Timestamps in current HDF5 database')
-            continue
+        if timestamps['lower_color'] is None or timestamps['lower_color'] is None:
+            rospy.loginfo('No Lower camera in current HDF5 database')
+        else:
+            dataset_lower.resize(timestamps['lower_color'].shape[1], axis=0)
+            dataset_lower[...] = np.argmin(np.abs(timestamps['lower_color'] -
+                                                  timestamps['lower_depth'].T), axis=0)
 
-        # TODO: should this be and or or?
-        if timestamps['lower_depth'] is None or timestamps['upper_depth'] is None:
-            rospy.loginfo('No Depth Timestamps in current HDF5 database')
-            continue
-
-        dataset_upper.resize(timestamps['upper_color'].shape[1], axis=0)
-        dataset_upper[...] = np.argmin(np.abs(timestamps['upper_color'] -
+        if timestamps['upper_color'] is None or timestamps['upper_depth'] is None:
+            rospy.loginfo('No Upper Camera Timestamps in current HDF5 database')
+        else:
+            dataset_upper.resize(timestamps['upper_color'].shape[1], axis=0)
+            dataset_upper[...] = np.argmin(np.abs(timestamps['upper_color'] -
                                               timestamps['upper_depth'].T), axis=0)
-
-        dataset_lower.resize(timestamps['lower_color'].shape[1], axis=0)
-        dataset_lower[...] = np.argmin(np.abs(timestamps['lower_color'] -
-                                              timestamps['lower_depth'].T), axis=0)
-
 
 def node():  # pylint: disable=too-many-statements, too-many-locals
     """The ROS node from which bag access, data parsing, and and hdf5 file generation
