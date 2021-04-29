@@ -4,8 +4,8 @@ segments:
   in-person:
     simon-says:
       ros:
-        start: <time in seconds since epoch>
-        end: <time in seconds since epoch>
+        start: <time in seconds since epoch (when instructions start)>
+        end: <time in seconds since epoch (after lilflo says good job)>
       gopro:
         start: <seconds in first file below>
         end: <seconds in last file below

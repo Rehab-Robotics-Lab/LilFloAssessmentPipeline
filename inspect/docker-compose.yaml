@@ -16,7 +16,6 @@ services:
     depends_on:
       - ros-master
     volumes:
-      - /home/$USER:/home/$USER
       - /etc/group:/etc/group:ro
       - /etc/passwd:/etc/passwd:ro
       - /etc/shadow:/etc/shadow:ro
